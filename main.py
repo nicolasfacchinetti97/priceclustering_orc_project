@@ -1,4 +1,9 @@
 from instance import instance
+import configparser
 
-items = instance("./instances/Test case 1 - uniform/input.txt")
-print(items)
+# read configuration file
+config = configparser.ConfigParser()
+config.read("config.ini")
+instance_path = config['inputfile']['fileName']
+
+items = instance(instance_path)
