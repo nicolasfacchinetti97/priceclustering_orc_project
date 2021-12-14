@@ -1,7 +1,10 @@
 from instance import instance
+from item import item
+
+from progress_bar import progress
+
 import configparser
 
-from item import item
 
 # read configuration file
 config = configparser.ConfigParser()
@@ -9,6 +12,9 @@ config.read("config.ini")
 instance_path = config['inputfile']['fileName']
 num_clusters = int(config['inputfile']['numClusters'])
 profit_margin = float(config['inputfile']['profitMargin'])
+verbose = int(config['inputfile']['verbose'])
+
+printv = print if verbose else lambda *a, **k: None
 
 items = instance(instance_path)
 
@@ -36,18 +42,22 @@ scans set N with index i ranging from 0 to N-1
 index used to retrive items (starting from 0), when used for states remember to +1
 """
 for i in range(0, items.N):
-    print(f'The value of i is {i+1}')
+    if not verbose:
+        progress(i, items.N, status='Computing the labels')
+    printv(f'The value of i is {i+1}')
+
     """
     scans set K with index k ranging from 1 to min i,K
     i+1 because refer to a label state, final +1 becasue range in python not consider the last element
     """
     for k in range(2, min(i+1,num_clusters)+1):
+        printv(f"\tComputing label ({i+1},{k})\n\tj in [{k-1}, {i}]")
+        candidate_labels = {}
+
         """
         compare all the labels when range [1..i] is partitioned into [1..j] and [j + 1..i]
         with j in [k − 1..i − 1] and only the best one is retained
         """
-        print(f"\tComputing label ({i+1},{k})\n\tj in [{k-1}, {i}]")
-        candidate_labels = {}
         # compute the labels
         for j in range(k-1, i+1):
             # get all the values for computation
@@ -62,7 +72,7 @@ for i in range(0, items.N):
             z_j = max(z_j_km1, diff)
             v_j = pairs[j,k-1]['v'] + sum_d1*summ + max((z_j_km1 - diff)*sum_d1, (diff - z_j_km1)*sum_d2)
             candidate_labels[j] = ([z_j, v_j])
-            print(f"\t\t with j={j}, v:{v_j} z:{z_j}")
+            printv(f"\t\t with j={j}, v:{v_j} z:{z_j}")
 
         # dominance check
         sum_d3 = sum(map(lambda item: item.demand, items.items[0: i+1]))
@@ -71,11 +81,11 @@ for i in range(0, items.N):
         for j in candidate_labels:
             z_j, v_j = candidate_labels[j]
             diff_j = z_j - v_j/sum_d3
-            print(f'\tFor j={j} the diff is {diff_j}')
+            printv(f'\tFor j={j} the diff is {diff_j}')
             if diff_j < best_diff:
                 best_diff = diff_j
                 min_j = j
-        print(f"\tBest values are obtained with j:{min_j}\n")
+        printv(f"\tBest values are obtained with j:{min_j}\n")
 
         # add new labels to state set
         top_vals = candidate_labels[min_j]
