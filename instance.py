@@ -4,6 +4,7 @@ class instance:
     """class to represent an instance of the problem, which is a list of item """
     def __init__(self, path):
         self.items = instance.read_file(path)
+        self.N = len(self.items)
         
     def __str__(self):
         string = "Items list:\n"
@@ -18,7 +19,7 @@ class instance:
         For each row is crated an item object which is apppended to a list that is finally returned
         Before return is checked that the number of ridden rows is equal to the first row of the file which indicate the number of items
         """
-        print(f"Openening instance file: \"{filename}.\"")
+        print(f"Openening instance file: {filename}.\n")
         with open(filename, 'r') as f:
             # read number of items
             num_items = int(f.readline())
@@ -38,3 +39,6 @@ class instance:
                 raise ValueError(f"Read {counter} items while excepting {num_items} rows")
             
             return items
+
+    def get_item(self, index):
+        return self.items[index]
