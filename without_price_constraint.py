@@ -107,4 +107,4 @@ for key in pairs:
     z = pairs[key]['z']
     v = pairs[key]['v']
     if v >= desired_profit:
-        print(f'{key} is an optimal state')
+        print(f'{key} is an optimal state -> {pairs[key]}')
