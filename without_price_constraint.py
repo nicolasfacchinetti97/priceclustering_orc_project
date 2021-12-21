@@ -92,18 +92,34 @@ for i in range(0, items.N):
         pairs[i+1,k]['z'] = candidate_labels[0]
         pairs[i+1,k]['v'] = candidate_labels[1]
 
-print('Computed all the states labels:')
+print('Computed all the state labels:')
 pairs = {key:values for (key, values) in sorted(pairs.items())}
 print(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
 
 # ============================================================================================================
 # terminantion check
-original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: items.N]))
-desired_profit = original_profit*profit_margin
-print(f'\nTerminantion check for optimal values.\n\tThe original profit is {original_profit}' +
-    f'\n\tThe desired profit with a margin of {profit_margin} is {desired_profit}')
+print(f'\nTerminantion check for optimal values.')
+
+optimal_pairs = {}
 for key in pairs:
+    n = key[0]
+    original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: n]))
+    desired_profit = original_profit*profit_margin
+    printv(f'\nFor {key} the original profit is {original_profit} and the desired profit is {desired_profit}')
+
     z = pairs[key]['z']
     v = pairs[key]['v']
     if v >= desired_profit:
-        print(f'{key} is an optimal state -> {pairs[key]}')
+        printv(f'{key} -> {pairs[key]} satisfy profit margin.')
+    else:
+        total_demand = sum(map(lambda item: item.demand, items.items[0: n]))
+        delta = (desired_profit - v)/total_demand
+        z += delta
+        v += delta*total_demand
+        printv(f'{key} -> {pairs[key]} not satisfy profit margin.\n\tIncrease z to {z} and v to {v}')
+    optimal_pairs[key] = {}
+    optimal_pairs[key]['z'] = z
+    optimal_pairs[key]['v'] = v
+
+print("\nThe optimal labels are:")
+print(*(f'\tState {x[0]} -> {x[1]}' for x in optimal_pairs.items()), sep='\n')
