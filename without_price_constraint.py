@@ -52,8 +52,11 @@ for i in range(0, items.N):
     """
     for k in range(2, min(i+1,num_clusters)+1):
         printv(f"\tComputing label ({i+1},{k})\n\tj in [{k-1}, {i}]")
-        candidate_labels = {}
-
+        candidate_labels = []
+        
+        total_demand = sum(map(lambda item: item.demand, items.items[0: i+1]))
+        min_j = -1
+        best_diff = float('inf')
         """
         compare all the labels when range [1..i] is partitioned into [1..j] and [j + 1..i]
         with j in [k − 1..i − 1] and only the best one is retained
@@ -61,37 +64,33 @@ for i in range(0, items.N):
         # compute the labels
         for j in range(k-1, i+1):
             # get all the values for computation
-            p_i = items.get_item(i).price
-            p_jp1 = items.get_item(j).price             # no need of +1 because refer to scale of paper (start 1)
-            summ = (p_i + p_jp1)/2
-            diff = (p_i - p_jp1)/2
-            z_j_km1 = pairs[j,k-1]['z']
-            sum_d1 = sum(map(lambda item: item.demand, items.items[j+1: i+1]))
-            sum_d2 = sum(map(lambda item: item.demand, items.items[0: j+1]))
-            # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
-            z_j = max(z_j_km1, diff)
-            v_j = pairs[j,k-1]['v'] + sum_d1*summ + max((z_j_km1 - diff)*sum_d1, (diff - z_j_km1)*sum_d2)
-            candidate_labels[j] = ([z_j, v_j])
-            printv(f"\t\t with j={j}, v:{v_j} z:{z_j}")
+            p_last = items.get_item(i).price
+            p_first = items.get_item(j).price             # no need of +1 because refer to scale of paper (start 1)
+            v_new = (p_last + p_first)/2
+            z_new = (p_last - p_first)/2
+            z_old = pairs[j,k-1]['z']
+            v_old = pairs[j,k-1]['v']
+            new_demand = sum(map(lambda item: item.demand, items.items[j+1: i+1]))
+            old_demand = sum(map(lambda item: item.demand, items.items[0: j+1]))
 
-        # dominance check
-        sum_d3 = sum(map(lambda item: item.demand, items.items[0: i+1]))
-        min_j = -1
-        best_diff = float('inf')
-        for j in candidate_labels:
-            z_j, v_j = candidate_labels[j]
-            diff_j = z_j - v_j/sum_d3
-            printv(f'\tFor j={j} the diff is {diff_j}')
-            if diff_j < best_diff:
-                best_diff = diff_j
+            # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
+            z_j = max(z_old, z_new)
+            v_j = v_old + new_demand*v_new + max((z_old - z_new)*new_demand, (z_new - z_old)*old_demand)
+            
+            # dominance check
+            q = z_j - v_j/total_demand
+            if q < best_diff:
+                best_diff = q
                 min_j = j
-        printv(f"\tBest values are obtained with j:{min_j}\n")
+                candidate_labels = [z_j, v_j]
+            printv(f"\t\twith j={j}, v:{v_j} z:{z_j} q: {q}")
+
+        printv(f"\tNon dominated solution with j:{min_j}\n")
 
         # add new labels to state set
-        top_vals = candidate_labels[min_j]
         pairs[i+1,k] = {}
-        pairs[i+1,k]['z'] = top_vals[0]
-        pairs[i+1,k]['v'] = top_vals[1]
+        pairs[i+1,k]['z'] = candidate_labels[0]
+        pairs[i+1,k]['v'] = candidate_labels[1]
 
 print('Computed all the states labels:')
 pairs = {key:values for (key, values) in sorted(pairs.items())}
