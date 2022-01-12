@@ -70,9 +70,8 @@ for i in range(0, items.N):
             z_new = (p_last - p_first)/2
             z_old = pairs[j,k-1]['z']
             v_old = pairs[j,k-1]['v']
-            new_demand = sum(map(lambda item: item.demand, items.items[j+1: i+1]))
-            old_demand = sum(map(lambda item: item.demand, items.items[0: j+1]))
-
+            new_demand = sum(map(lambda item: item.demand, items.items[j: i+1]))
+            old_demand = sum(map(lambda item: item.demand, items.items[0: j]))
             # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
             z_j = max(z_old, z_new)
             v_j = v_old + new_demand*v_new + max((z_old - z_new)*new_demand, (z_new - z_old)*old_demand)
