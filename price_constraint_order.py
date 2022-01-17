@@ -7,10 +7,12 @@ from progress_bar import progress
 
 import configparser
 
+def calc_demand(items, first, last):
+    return sum(map(lambda i: i.demand, items.items[first-1: last]))
+
 def check_poly(poly, best):
     """check if best is dominated by poly"""
     for point in poly:
-        found = False
         for p1, p2 in zip(best, best[1:]):
             # find segment of best that contains point
             if p1[0] <= point[0] < p2[0]:
@@ -22,13 +24,9 @@ def check_poly(poly, best):
                         return False
                     elif point[1] >= p1[1] + (p2[1]-p1[1])*(point[0]-p1[0])/(p2[0]-p1[0]):
                         return False
-        if not found:
-            # no semgent of best contains point -> best segment short than poly
-            pass
     return True
 
-def calc_demand(items, first, last):
-    return sum(map(lambda i: i.demand, items.items[first-1: last]))
+#----------------------------------------------------------------------------------------------------------
 
 # read configuration file
 config = configparser.ConfigParser()
@@ -41,8 +39,6 @@ verbose = int(config['inputfile']['verbose'])
 printv = print if verbose else lambda *a, **k: None
 
 items = instance(instance_path)
-
-
 # dict of states (i,k)
 """
 i in N is the last considered item
@@ -101,48 +97,37 @@ for i in range(1, items.N+1):
             
             # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
             z_j = max(z_old, z_new)
-            print(f'zmax is {z_max}')
             v_j = v_old + new_demand*v_new 
-            print(f'z in state {(j,k-1)}={z_old} new={z_new}')
+            print(f'In state {(j,k-1)} z old={z_old}, z new={z_new}, z max={z_max}')
+
+            demand_old_clusters = [calc_demand(items, pairs[j, k-1]['s'][kk], pairs[j, k-1]['e'][kk]) for kk in range(0, k-1)]
+            max_price_cluster = {kk: items.items[pairs[j, k-1]['e'][kk]-1].price - pairs[j, k-1]['q'][kk] for kk in range(k-1)}
+            print(f'\t demand old clusters{demand_old_clusters}')
+            print(f'\t max price increase {max_price_cluster}')
 
             new_increase = new_demand * min(z_max, z_new)
-
-            print('Calculus demand old clusters')
-            demand_old_clusters = [calc_demand(items, pairs[j, k-1]['s'][kk], pairs[j, k-1]['e'][kk]) for kk in range(0, k-1)]
-            print(demand_old_clusters)
-            max_price_cluster = {kk: items.items[pairs[j, k-1]['e'][kk]-1].price - pairs[j, k-1]['q'][kk] for kk in range(k-1)}
             old_increase = sum(map(lambda kk: demand_old_clusters[kk]*min(z_max, max_price_cluster[kk]), range(k-1)))
-            print(f'\t max price increase {max_price_cluster},')
-            """
-            for cluster, d in enumerate(demand_old_clusters):
-                price_end_cluster = items.items[pairs[j, k-1]['e'][cluster]-1].price
-                max_price_cluster[cluster] = price_end_cluster - pairs[j, k-1]['q'][cluster]
-                print(f'\tmax price in cluster {cluster}: {price_end_cluster} with max possibile price increase: {max_price_cluster[cluster]}')
-                old_increase += d*min(z_max, max_price_cluster[cluster])
-            """
-            
-            print(f'possible increase from old {old_increase} new {new_increase}')     
-            if old_increase >= new_increase:
-                print("\tincrease new")
-                v_j += new_increase
-            else:
-                print("\tincrease old")
-                v_j += old_increase
-            
+            print(f'possible tot price increase in old:{old_increase} new:{new_increase}') 
+
             candidate_states[j] = {}
-            candidate_states[j]['z'] = z_j
-            candidate_states[j]['v'] = v_j
-            candidate_states[j]['s'] = pairs[j, k-1]['s'].copy() + [j+1]
-            candidate_states[j]['e'] = pairs[j, k-1]['e'].copy() + [i]
             candidate_states[j]['q'] = pairs[j, k-1]['q'].copy() + [v_new]
-            if new_increase <= old_increase:
+            # maximize cluster prices according to zmax and price costraint 
+            if old_increase >= new_increase:
+                print("\tcan increase new")
+                v_j += new_increase
                 candidate_states[j]['q'][k-1] += min(z_max, z_new)
             else:
+                print("\tcan increase old")
+                v_j += old_increase
                 for kk in range(0, k-1):
-                    candidate_states[j]['q'][kk] += demand_old_clusters[kk]*min(z_max, max_price_cluster[kk])  
+                    candidate_states[j]['q'][kk] += min(z_max, max_price_cluster[kk])  
             
+            candidate_states[j]['v'] = v_j
+            candidate_states[j]['z'] = z_j
+            candidate_states[j]['s'] = pairs[j, k-1]['s'].copy() + [j+1]
+            candidate_states[j]['e'] = pairs[j, k-1]['e'].copy() + [i]
+    
             printv(f'\tState {(i,k)} -> {list(candidate_states[j].items())}')
-
 
         # dominance check   
         printv("\nDominance check")
@@ -151,6 +136,7 @@ for i in range(1, items.N+1):
         original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
         desired_profit = original_profit*profit_margin
         printv(f'\n\tFor {i} items the original profit is {original_profit} and the desired profit is {desired_profit}')
+        
         # find stationary points
         points = {}
         for jj in candidate_states.keys():
@@ -193,15 +179,12 @@ for i in range(1, items.N+1):
             else:
                 while v_j >= desired_profit:
                     # find minimum cluster price decrease among the possible
-                    # --------------- metti list comprension
-                    possible_decrease = []
-                    for d in cluster_info:
-                        cluster_price = d[2]
-                        cluster_start = d[0]
-                        possible_decrease.append(cluster_price-items.items[cluster_start-1].price)
+                    possible_decrease= [d[2] - items.items[d[0]-1].price for d in cluster_info]
+                   
                     print(f'\t\tThe possible decreases in each cluster are: {possible_decrease}')
                     value = 0 if all(e == 0 for e in possible_decrease) else min([n for n in possible_decrease if n != 0 ])
                     if value is 0:
+                        # no possible further decrease for price costraint
                         break
                     print(f'\t\tThe min val is {value}')
                     decreasable_cluster = [i for i,n in enumerate(possible_decrease) if n != 0]
