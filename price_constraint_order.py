@@ -101,7 +101,6 @@ def truncate_poly(x_p, points):
     y_p = value_in_segmentp1p2(a, b, x_p)
     return (x_p, y_p)
 
-
 def extend_state(items, pairs, i, j, k):
     # get all the values for computation
     p_last = items.get_item(i-1).price
