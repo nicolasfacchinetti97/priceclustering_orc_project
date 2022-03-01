@@ -23,35 +23,19 @@ def check_poly(poly, best):
         for p1, p2 in zip(best, best[1:]):
             # find segment of best that contains point
             if p1[0] < point[0] <= p2[0]:
-                found = True
-                print(p1)
-                print(p2)
-                print(point)
-                if point[1] > p1[1]:               # maggiore o magg uguale
-                    print("a")
+                best_poly_value_in_point = value_in_segmentp1p2(p1, p2, point[0])
+                print(f"\t\t\tSegment of best: {p1}, {p2}. Point of new poly to check {point}.\n" + 
+                        f"\t\t\tValue in {point[0]} of best is {best_poly_value_in_point}")
+                if point[1] > best_poly_value_in_point:
+                    print("\t\t\tpoint of poly above the best segment")
                     return False
-                else:
-                    if point[1] > p2[1]:
-                        print("b")
-                        return False
-                    elif point[1] > value_in_segmentp1p2(p1, p2, point[0]):
-                        print("c")
-                        return False
-        if not found:
-            # the point is outside all segment's range
-            if point[0] < best[0][0]:
-                # if the point is previou
-                # add to se poly
-                pass
-            elif point[0] > best[-1][0]:
-                pass
     return True
 
 def find_previous_point(cluster_info, v_j, z_j):
     # find minimum cluster price decrease among the possible
     possible_decrease= [d[2] - items.items[d[0]-1].price for d in cluster_info]
 
-    print(f'\t\tThe possible decreases in each cluster are: {possible_decrease}')
+    print(f'\t\t\tThe possible decreases in each cluster are: {possible_decrease}')
     value = 0 if all(e == 0 for e in possible_decrease) else min([n for n in possible_decrease if n != 0 ])
     if value is 0:
         # no possible further decrease for price costraint
@@ -64,18 +48,18 @@ def find_previous_point(cluster_info, v_j, z_j):
         e = cluster_info[c][1]
         demand += sum(map(lambda item: item.demand, items.items[s-1: e]))
         cluster_info[c][2] -= value
-    print(f'\t\tFor the clusters {decreasable_cluster} the min val is {value} with demand {demand}')
+    print(f'\t\t\tThe min decrease is {value} for the clusters {decreasable_cluster}, with demand {demand}')
 
     v_j -= value * demand
     z_j -= value
-    print(f'\t\tNew cluster info {cluster_info} with profit {v_j}\n')
+    print(f'\t\t\tNew cluster info {cluster_info} with profit {v_j}\n')
     return cluster_info, v_j, z_j
 
 def find_next_point(cluster_info, v_j, z_j):
     # find minimum cluster price increase among the possible
     possible_increase = [items.items[d[1]-1].price - d[2] for d in cluster_info]
 
-    print(f'\t\tThe possible increases in each cluster are: {possible_increase}')
+    print(f'\t\t\tThe possible increases in each cluster are: {possible_increase}')
     value = 0 if all(e == 0 for e in possible_increase) else min([n for n in possible_increase if n != 0])
     if value is 0:
         # no possible further increase, can't reach v for price costraint
@@ -88,11 +72,11 @@ def find_next_point(cluster_info, v_j, z_j):
         e = cluster_info[c][1]
         demand += sum(map(lambda item: item.demand, items.items[s-1: e]))
         cluster_info[c][2] += value
-    print(f'\t\tFor the clusters {increasable_cluster} the min val is {value} with demand {demand}')
+    print(f'\t\t\tThe min increase is {value} for the clusters {increasable_cluster}, with demand {demand}')
     
     v_j += value * demand
     z_j += value
-    print(F'\t\tNew cluster info {cluster_info} with profit {v_j}\n')
+    print(F'\t\t\tNew cluster info {cluster_info} with profit {v_j}\n')
     return cluster_info, v_j, z_j
 
 def truncate_poly(x_p, points):
@@ -119,7 +103,7 @@ def extend_state(items, pairs, i, j, k):
 
     demand_old_clusters = [calc_demand(items, pairs[j, k-1]['s'][kk], pairs[j, k-1]['e'][kk]) for kk in range(0, k-1)]
     max_price_cluster = {kk: items.items[pairs[j, k-1]['e'][kk]-1].price - pairs[j, k-1]['q'][kk] for kk in range(k-1)}
-    print(f'\t demand old clusters{demand_old_clusters}')
+    print(f'\t demand old clusters {demand_old_clusters}')
     print(f'\t max price increase {max_price_cluster}')
 
     new_increase = new_demand * min(z_max, z_new)
@@ -201,7 +185,7 @@ for i in range(1, items.N+1):
         """
         # compute the labels
         for j in range(k-1, i):
-            print(f'----------------{j}---------------------')
+            print(f'---------------- j={j} ---------------------')
             candidate_states[j] = extend_state(items, pairs, i, j, k)
             printv(f'\tState {(i,k)} -> {list(candidate_states[j].items())}')
 
@@ -211,7 +195,8 @@ for i in range(1, items.N+1):
 
         original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
         desired_profit = original_profit*profit_margin
-        printv(f'\n\tFor {i} items the original profit is {original_profit} and the desired profit is {desired_profit}')
+        printv(f'\n\tFor {i} items the original profit is {original_profit} and the desired profit is {desired_profit}\n' +
+                '\tStationary points calculus...')
         
         # find stationary points
         points = {}
@@ -222,42 +207,47 @@ for i in range(1, items.N+1):
             cluster_info = [[data[c_idx] for data in seq_data] for c_idx in range(0, len(seq_data[0]))]
             # cluster_info = [start cluster, end cluster, price]
 
-            print(f'\tWith j:{jj} the cluster are {cluster_info} with profit {v_j}')
+            print(f'\t\tWith j:{jj} the cluster are {cluster_info} with profit {v_j}')
             
             points[jj] = [(v_j, z_j)]
             try:
                 while v_j < desired_profit:
                     cluster_info, v_j, z_j = find_next_point(cluster_info, v_j, z_j)
                     points[jj].append((v_j, z_j))
-                    print((v_j, z_j))
+                    print(f"\t\t\tNew point is: {(v_j, z_j)}")
             except NoPoints:
-                print(f"\t\tCan't further increase v for price costraint, remove state {jj}")
+                print(f"\t\t\tCan't further increase v for price costraint, remove state {jj}")
                 del points[jj]
+
+            v_j = candidate_states[jj]['v']
+            z_j = candidate_states[jj]['z']
+            cluster_info = [[data[c_idx] for data in seq_data] for c_idx in range(0, len(seq_data[0]))]
 
             try:
                 # v_j of first item > desired profit, pre z>0
                 while z_j > 0:
                     cluster_info, v_j, z_j = find_previous_point(cluster_info, v_j, z_j)
                     points[jj].insert(0,(v_j, z_j))
-                    print((v_j, z_j))
+                    print(f"\t\t\tNew point is: {(v_j, z_j)}")
             except PriceCostraint:
-                print("No further decrease for price costraint")
+                print("\t\t\tNo further decrease for price costraint")
             
+
+            printv(f"\t\tPoints of the poly: {points[jj]}")
             # truncate points, v_j (last point) > desired_profit
-            #if points[jj][-1][0] > desired_profit and len(points[jj])>1:
-            #    points[jj][-1] = truncate_poly(desired_profit, points[jj][-2:])
+            if points[jj][-1][0] > desired_profit and len(points[jj])>1:
+                points[jj][-1] = truncate_poly(desired_profit, points[jj][-2:])
                 
             print("\t\t::::::::::::::::::::::")
-        print("List of points")
-        print(points)
+        print("\tList of points\n" + f"\t{points}")
 
         # find non dominated solution
         bestj = min(points.keys())
-        for jj, poly in points.items():         # si può partire da points [1:]
-            print(f'checking {jj}')
+        for jj, poly in list(points.items())[1:]:
+            print(f'\t\t...checking soluton with j={jj}')
             if check_poly(poly, points[bestj]) is True:
                 bestj = jj
-                print(f"New best {jj}")
+                print(f"\t\tNew best {jj}")
         printv(f"\tNon dominated solution with j:{bestj}\n")
         # add new labels to state set
         pairs[i,k] = {}
