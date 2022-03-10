@@ -9,6 +9,7 @@ class NoPoints(Exception):
     pass
 
 def calc_demand(items, first, last):
+    # the first is -1 since the list start from 0 but in the formulation from 1
     return sum(map(lambda i: i.demand, items.items[first-1: last]))
 
 def value_in_segmentp1p2(p1, p2, val):
@@ -22,10 +23,10 @@ def check_poly(poly, best):
             # find segment of best that contains point
             if p1[0] < point[0] <= p2[0]:
                 best_poly_value_in_point = value_in_segmentp1p2(p1, p2, point[0])
-                print(f"\t\t\tSegment of best: {p1}, {p2}. Point of new poly to check {point}.\n" + 
+                printv(f"\t\t\tSegment of best: {p1}, {p2}. Point of new poly to check {point}.\n" + 
                         f"\t\t\tValue in {point[0]} of best is {best_poly_value_in_point}")
                 if point[1] > best_poly_value_in_point:
-                    print("\t\t\tpoint of poly above the best segment")
+                    printv("\t\t\tpoint of poly above the best segment")
                     return False
     return True
 
@@ -33,7 +34,7 @@ def find_next_point(cluster_info, v_j, z_j):
     # find minimum cluster price increase among the possible
     possible_increase = [items.items[d[1]-1].price - d[2] for d in cluster_info]
 
-    print(f'\t\t\tThe possible increases in each cluster are: {possible_increase}')
+    printv(f'\t\t\tThe possible increases in each cluster are: {possible_increase}')
     value = 0 if all(e == 0 for e in possible_increase) else min([n for n in possible_increase if n != 0])
     if value is 0:
         # no possible further increase, can't reach v for price costraint
@@ -46,11 +47,11 @@ def find_next_point(cluster_info, v_j, z_j):
         e = cluster_info[c][1]
         demand += sum(map(lambda item: item.demand, items.items[s-1: e]))
         cluster_info[c][2] += value
-    print(f'\t\t\tThe min increase is {value} for the clusters {increasable_cluster}, with demand {demand}')
+    printv(f'\t\t\tThe min increase is {value} for the clusters {increasable_cluster}, with demand {demand}')
     
     v_j += value * demand
     z_j += value
-    print(F'\t\t\tNew cluster info {cluster_info} with profit {v_j}\n')
+    printv(F'\t\t\tNew cluster info {cluster_info} with profit {v_j}\n')
     return cluster_info, v_j, z_j
 
 def truncate_poly(x_p, points):
@@ -73,30 +74,30 @@ def extend_state(items, pairs, i, j, k):
     # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
     z_j = max(z_old, z_new)
     v_j = v_old + new_demand*v_new 
-    print(f'\tIn state {(j,k-1)} z old={z_old}, z new={z_new}, z max={z_max}')
-
-    demand_old_clusters = [calc_demand(items, pairs[j, k-1]['s'][kk], pairs[j, k-1]['e'][kk]) for kk in range(0, k-1)]
-    max_price_cluster = {kk: items.items[pairs[j, k-1]['e'][kk]-1].price - pairs[j, k-1]['q'][kk] for kk in range(k-1)}
-    print(f'\tdemand old clusters {demand_old_clusters}, max price increase {max_price_cluster}')
-
-    new_increase = new_demand * min(z_max, z_new)
-    old_increase = sum(map(lambda kk: demand_old_clusters[kk]*min(z_max, max_price_cluster[kk]), range(k-1)))
-    print(f'\tpossible tot price increase in old: {old_increase} new: {new_increase}') 
+    printv(f'\tIn state {(j,k-1)} z old={z_old} and z new={z_new} => z_j = {z_j}, z max={z_max}')
 
     state_j = {}
     state_j['q'] = pairs[j, k-1]['q'].copy() + [v_new]
     # maximize cluster prices according to zmax and price costraint 
-    if old_increase >= new_increase:
-        v_j += new_increase
+    if z_j <= z_old:
+        # find minimum increase of z 
         z_increase = min(z_max, z_new)
+
+        v_j += new_demand * z_increase
         state_j['q'][k-1] += z_increase
-        print(f"\tcan increase new cluster of {z_increase}")
+        printv(f"\tcan increase new cluster price of {z_increase}")
     else:
-        v_j += old_increase
+        demand_old_clusters = [calc_demand(items, pairs[j, k-1]['s'][kk], pairs[j, k-1]['e'][kk]) for kk in range(0, k-1)]
+        max_price_cluster = {kk: items.items[pairs[j, k-1]['e'][kk]-1].price - pairs[j, k-1]['q'][kk] for kk in range(k-1)}
+        printv(f'\tMax price increase in each cluster {max_price_cluster}')
+        
+        old_increase = 0
         for kk in range(0, k-1):
-            z_increase = min(z_max, max_price_cluster[kk]) 
+            z_increase = min(z_max, max_price_cluster[kk])
             state_j['q'][kk] += z_increase
-            print(f"\tcan increase cluster {kk} of {z_increase}")
+            old_increase += demand_old_clusters[kk]*z_increase
+            printv(f"\tcan increase cluster price {kk} of {z_increase}")
+        v_j += old_increase
     state_j['v'] = v_j
     state_j['z'] = z_j
     state_j['s'] = pairs[j, k-1]['s'].copy() + [j+1]
@@ -214,7 +215,7 @@ for i in range(1, items.N+1):
         """
         # compute the labels
         for j in range(k-1, i):
-            print(f'--------------------- j={j} ---------------------')
+            printv(f'--------------------- j={j} ---------------------')
             candidate_states[j] = extend_state(items, pairs, i, j, k)
             printv(f'\tState {(i,k)} -> {list(candidate_states[j].items())}')
 
@@ -229,7 +230,7 @@ for i in range(1, items.N+1):
         
         # find stationary points
         points = find_stationary_points(candidate_states, desired_profit)
-        print("\tList of points\n" + f"\t{points}")
+        printv("\tList of points\n" + f"\t{points}")
 
         # find non dominated solution
         bestj = find_non_dominated_solution(points)
@@ -241,8 +242,8 @@ for i in range(1, items.N+1):
         pairs[i,k]['s'] = candidate_states[bestj]['s']
         pairs[i,k]['e'] = candidate_states[bestj]['e']
         pairs[i,k]['q'] = candidate_states[bestj]['q']
-        print(f'\tState {(i,k)} -> {list(pairs[i,k].items())}')
-        print("______________________________________________________________________________________________________________________")
+        printv(f'\tState {(i,k)} -> {list(pairs[i,k].items())}')
+        printv("______________________________________________________________________________________________________________________")
 
 print('Computed all the state labels:')
 pairs = {key:values for (key, values) in sorted(pairs.items())}

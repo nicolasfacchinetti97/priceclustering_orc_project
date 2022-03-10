@@ -5,6 +5,9 @@ from progress_bar import progress
 
 import configparser
 
+def calc_demand(items, first, last):
+    # the first is -1 since the list start from 0 but in the formulation from 1
+    return sum(map(lambda i: i.demand, items.items[first-1: last]))
 
 # read configuration file
 config = configparser.ConfigParser()
@@ -34,6 +37,8 @@ for h in range(0, items.N):
     d_h = sum(map(lambda item: item.demand, items.items[0: h+1]))
     pairs[h+1, 1]['v'] = (items.get_item(h).price + items.get_item(0).price)/2 * d_h
 
+printv(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
+
 # ============================================================================================================
 # extension of the states
 print("Extension of the labes...")
@@ -41,20 +46,20 @@ print("Extension of the labes...")
 scans set N with index i ranging from 0 to N-1
 index used to retrive items (starting from 0), when used for states remember to +1
 """
-for i in range(0, items.N):
+for i in range(1, items.N+1):
     if not verbose:
-        progress(i, items.N, status='Computing the labels')
-    printv(f'The value of i is {i+1}')
+        progress(i-1, items.N, status='Computing the labels')
+    printv(f'The value of i is {i}')
 
     """
     scans set K with index k ranging from 1 to min i,K
     i+1 because refer to a label state, final +1 becasue range in python not consider the last element
     """
-    for k in range(2, min(i+1,num_clusters)+1):
-        printv(f"\tComputing label ({i+1},{k})\n\tj in [{k-1}, {i}]")
+    for k in range(2, min(i,num_clusters)+1):
+        printv(f"\tComputing label ({i},{k})\n\tj in [{k-1}, {i-1}]")
         candidate_labels = []
         
-        total_demand = sum(map(lambda item: item.demand, items.items[0: i+1]))
+        total_demand = sum(map(lambda item: item.demand, items.items[0: i]))
         min_j = -1
         best_diff = float('inf')
         """
@@ -62,20 +67,20 @@ for i in range(0, items.N):
         with j in [k − 1..i − 1] and only the best one is retained
         """
         # compute the labels
-        for j in range(k-1, i+1):
+        for j in range(k-1, i):
             # get all the values for computation
-            p_last = items.get_item(i).price
+            p_last = items.get_item(i-1).price
             p_first = items.get_item(j).price             # no need of +1 because refer to scale of paper (start 1)
             v_new = (p_last + p_first)/2
             z_new = (p_last - p_first)/2
             z_old = pairs[j,k-1]['z']
             v_old = pairs[j,k-1]['v']
-            new_demand = sum(map(lambda item: item.demand, items.items[j: i+1]))
-            old_demand = sum(map(lambda item: item.demand, items.items[0: j]))
+            new_demand = calc_demand(items, j+1, i)
+            old_demand = calc_demand(items, 1, j)
             # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
             z_j = max(z_old, z_new)
             v_j = v_old + new_demand*v_new + max((z_old - z_new)*new_demand, (z_new - z_old)*old_demand)
-            
+
             # dominance check
             q = z_j - v_j/total_demand
             if q < best_diff:
@@ -87,9 +92,9 @@ for i in range(0, items.N):
         printv(f"\tNon dominated solution with j:{min_j}\n")
 
         # add new labels to state set
-        pairs[i+1,k] = {}
-        pairs[i+1,k]['z'] = candidate_labels[0]
-        pairs[i+1,k]['v'] = candidate_labels[1]
+        pairs[i,k] = {}
+        pairs[i,k]['z'] = candidate_labels[0]
+        pairs[i,k]['v'] = candidate_labels[1]
 
 print('Computed all the state labels:')
 pairs = {key:values for (key, values) in sorted(pairs.items())}
