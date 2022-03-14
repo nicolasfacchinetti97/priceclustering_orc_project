@@ -34,8 +34,12 @@ print('Base cases creation...\n')
 for h in range(0, items.N):
     pairs[h+1,1] = {}
     pairs[h+1, 1]['z'] = (items.get_item(h).price - items.get_item(0).price)/2
-    d_h = sum(map(lambda item: item.demand, items.items[0: h+1]))
+    d_h = calc_demand(items, 1, h+1)
     pairs[h+1, 1]['v'] = (items.get_item(h).price + items.get_item(0).price)/2 * d_h
+    pairs[h+1, 1]['s'] = [1]
+    pairs[h+1, 1]['e'] = [h+1]
+    pairs[h+1, 1]['q'] = [pairs[h+1, 1]['v']/d_h]
+
 
 printv(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
 
@@ -80,13 +84,14 @@ for i in range(1, items.N+1):
             # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
             z_j = max(z_old, z_new)
             v_j = v_old + new_demand*v_new + max((z_old - z_new)*new_demand, (z_new - z_old)*old_demand)
-
+            s_j = pairs[j, k-1]['s'].copy() + [j+1]
+            e_j = pairs[j, k-1]['e'].copy() + [i]
             # dominance check
             q = z_j - v_j/total_demand
             if q < best_diff:
                 best_diff = q
                 min_j = j
-                candidate_labels = [z_j, v_j]
+                candidate_labels = [z_j, v_j, s_j, e_j]
             printv(f"\t\twith j={j}, v:{v_j} z:{z_j} q: {q}")
 
         printv(f"\tNon dominated solution with j:{min_j}\n")
