@@ -102,7 +102,7 @@ for i in range(1, items.N+1):
             z_c.append(z_cc)
         else:
             z_c.append([0])
-    printv(f'z values for each closed cluster {z_c}')
+    printv(f'\nz values for each closed cluster {z_c}')
     # take the max value of z for each state
     z_c = [max(c) for c in z_c]
     printv(f'max z value for each closed cluster {z_c}')
@@ -115,7 +115,7 @@ for i in range(1, items.N+1):
             # find p'(K) for each open cluster
             for j, cc in enumerate(c["O"]):
                 candiate_lastp = i+j+1
-                printv(f'for {cc} the candidate next element is {candiate_lastp}')
+                # printv(f'for {cc} the candidate next element is {candiate_lastp}')
                 z_oc.append((items.get_item(candiate_lastp-1).price - items.get_item(cc[0]-1).price)/2)
             z_o.append(z_oc)
         else:
@@ -133,8 +133,38 @@ for i in range(1, items.N+1):
     print(candidate_states)
 
     # v calculus 
-    
-
+    v_c = []
+    for c in candidate_states:
+        v_cc = 0
+        z = c["z"]
+        for cc in c["C"]:
+            p_min = items.get_item(cc[0]-1).price
+            p_max = items.get_item(cc[-1]-1).price
+            for j in cc:
+                # contribution item j = dj * min{p−(K) + z, p+(K)}
+                contribution_j = items.get_item(j-1).demand * min(p_min + z, p_max)
+                v_cc += contribution_j
+        v_c.append(v_cc)
+    printv(f'v values for each closed cluster {v_c}')
+    # estimates bound v on open clusters
+    v_o = []
+    for c in candidate_states:
+        v_oo = [0, 0]
+        z = c["z"]
+        p_i_next = items.get_item(i).price
+        for cc in c["O"]:
+            p_min = items.get_item(cc[0]-1).price
+            for j in cc:
+                # dj min{p−(K) + z, pi+1} ≤ contribution item j ≤ dj (p−(K) + z).
+                lower_bound = items.get_item(j-1).demand * min(p_min + z, p_i_next)
+                high_bound = items.get_item(j-1).demand * (p_min + z)
+                v_oo[0] += lower_bound
+                v_oo[1] += high_bound
+        v_o.append(v_oo)
+    printv(f'v estimates for each closed open cluster {v_o}')
+    for count, cluster in enumerate(candidate_states):
+        cluster['v'] = [v_o[count][0] + v_c[count], v_o[count][1] + v_c[count]]
+    print(candidate_states)
     # dominance check
 
     # assign non-dominated solution
