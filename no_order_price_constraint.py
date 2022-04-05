@@ -203,9 +203,10 @@ for i in range(1, items.N+1):
     
     # sort the open clusters in ascending order of their first point
 
-    # compute z for closed cluster
     z_c = []
+    z_o = []
     for c in candidate_states:
+        # compute z for closed cluster
         if len(c["C"]) > 0:
             z_cc = []
             for cc in c["C"]:
@@ -213,14 +214,8 @@ for i in range(1, items.N+1):
             z_c.append(z_cc)
         else:
             z_c.append([0])
-    printv(f'\nz values for each closed cluster {z_c}')
-    # take the max value of z for each state
-    z_c = [max(c) for c in z_c]
-    printv(f'max z value for each closed cluster {z_c}')
-    
-    # estimate lower bound on z for open cluster
-    z_o = []
-    for c in candidate_states:
+
+        # estimate lower bound on z for open cluster
         if len(c["O"]) > 0:
             z_oc = []
             # find p'(K) for each open cluster
@@ -231,11 +226,14 @@ for i in range(1, items.N+1):
             z_o.append(z_oc)
         else:
             z_o.append([0])
-    printv(f'z values estimate for each open cluster {z_o}')
+    # printv(f'\nz values for each closed cluster {z_c}')
+    # take the max value of z for each state
+    z_c = [max(c) for c in z_c]
+    # printv(f'max z value for each closed cluster {z_c}')
+    # printv(f'z values estimate for each open cluster {z_o}')
     # take the max value of z for each state
     z_o = [max(c) for c in z_o]
-    printv(f'max z value estimate for each open cluster {z_o}')
-    # ZZZZZZZZZZZZZZZZZZZ METTI IL CALCOLO DELLE DUE Z IN UN SOLO CILO FOR -----------------------------------------------
+    # printv(f'max z value estimate for each open cluster {z_o}')
     z = [max(z_c[j], z_o[j]) for j in range(len(z_o))]
     print(f"final z value: {z}")
 
@@ -245,9 +243,11 @@ for i in range(1, items.N+1):
 
     # v calculus 
     v_c = []
+    v_o = []
     for c in candidate_states:
         v_cc = 0
         z = c["z"]
+        # calculus of v for closed clusters
         for cc in c["C"]:
             p_min = items.get_item(cc[0]-1).price
             p_max = items.get_item(cc[-1]-1).price
@@ -256,12 +256,9 @@ for i in range(1, items.N+1):
                 contribution_j = items.get_item(j-1).demand * min(p_min + z, p_max)
                 v_cc += contribution_j
         v_c.append(v_cc)
-    printv(f'v values for each closed cluster {v_c}')
-    # estimates bound v on open clusters
-    v_o = []
-    for c in candidate_states:
+
+        # estimates bound v on open clusters
         v_oo = [0, 0]
-        z = c["z"]
         for cc in c["O"]:
             p_i_next = items.get_item(i).price
             p_min = items.get_item(cc[0]-1).price
@@ -272,7 +269,10 @@ for i in range(1, items.N+1):
                 v_oo[0] += lower_bound
                 v_oo[1] += high_bound
         v_o.append(v_oo)
+
+    printv(f'v values for each closed cluster {v_c}')
     printv(f'v estimates for each closed open cluster {v_o}')
+
     for count, cluster in enumerate(candidate_states):
         cluster['vc'] = v_c[count]
         cluster['v'] = [v_o[count][0] + v_c[count], v_o[count][1] + v_c[count]]
