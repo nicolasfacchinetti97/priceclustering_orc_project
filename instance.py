@@ -28,10 +28,12 @@ class instance:
             # read instances
             items = []
             counter = 0
+            cum_demand = 0
             for line in f:
                 counter += 1
                 price, demand = line.split()               # instance are in format "price demand"
-                new_item = item(price, demand)          # use item object
+                cum_demand += int(demand)
+                new_item = item(price, demand, cum_demand)          # use item object
                 items.append(new_item)
 
             # check that the number of read items is equal to the first row of instance file
