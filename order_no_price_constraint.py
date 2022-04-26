@@ -57,7 +57,7 @@ for i in range(1, items.N+1):
         printv(f"\tComputing label ({i},{k})\n\tj in [{k-1}, {i-1}]")
         candidate_labels = []
         
-        total_demand = sum(map(lambda item: item.demand, items.items[0: i]))
+        total_demand = items.items[i-1].cumdemand
         min_j = -1
         best_diff = float('inf')
         """
@@ -75,7 +75,7 @@ for i in range(1, items.N+1):
             v_old = pairs[j,k-1]['v']
 
             old_demand =  items.items[j-1].cumdemand
-            new_demand = items.items[i-1].cumdemand - items.items[j-1].cumdemand
+            new_demand = total_demand - old_demand
 
             # compute candidate values of z and v when range [1..i] is partitioned into [1..j] and [j + 1..i].
             z_j = max(z_old, z_new)
@@ -115,7 +115,7 @@ for key in pairs:
     if v >= desired_profit:
         printv(f'{key} -> {pairs[key]} satisfy profit margin.')
     else:
-        total_demand = sum(map(lambda item: item.demand, items.items[0: n]))
+        total_demand = items.items[n-1].cumdemand
         delta = (desired_profit - v)/total_demand
         z += delta
         v += delta*total_demand

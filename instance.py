@@ -44,3 +44,7 @@ class instance:
 
     def get_item(self, index):
         return self.items[index]
+
+    def __str__(self):
+        strings = [f'price {i.price}, demand {i.demand}, cum demand {i.cumdemand}\n' for i in self.items]
+        return(' '.join(map(str, strings)))
