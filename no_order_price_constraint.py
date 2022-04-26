@@ -78,7 +78,7 @@ def find_next_point(cluster_info, v_j, z_j):
     for c in increasable_cluster:
         s = cluster_info[c][0]
         e = cluster_info[c][1]
-        demand += sum(map(lambda item: item.demand, items.items[s-1: e]))
+        demand += cluster_info[c][3]
         cluster_info[c][2] += value
     printv(f'\t\t\tThe min increase is {value} for the clusters {increasable_cluster}, with demand {demand}')
     
@@ -93,7 +93,7 @@ def truncate_poly(x_p, points):
     y_p = value_in_segmentp1p2(a, b, x_p)
     return (x_p, y_p)
 
-def find_stationary_points(candidates, desired_profit):
+def find_stationary_points(candidates):
     """
     for each candidate state found with the extension procedure search the sationary points
     """
@@ -101,27 +101,21 @@ def find_stationary_points(candidates, desired_profit):
     for jj in candidates.keys():
         v_j = candidates[jj]['v']
         z_j = candidates[jj]['z']
-        seq_data = [candidates[jj][key] for key in ['s', 'e', 'q']]
+        seq_data = [candidates[jj][key] for key in ['s', 'e', 'q', 'd']]
         cluster_info = [[data[c_idx] for data in seq_data] for c_idx in range(0, len(seq_data[0]))]
-        # cluster_info = [start cluster, end cluster, price]
+        # cluster_info = [start cluster, end cluster, price, demand]
 
         printv(f'\t\tWith j:{jj} the cluster are {cluster_info} with profit {v_j}')
         
         points[jj] = [(v_j, z_j)]
         try:
-            while v_j < desired_profit:
-                cluster_info, v_j, z_j = find_next_point(cluster_info, v_j, z_j)
-                points[jj].append((v_j, z_j))
-                printv(f"\t\t\tNew point is: {(v_j, z_j)}")
+            cluster_info, v_j, z_j = find_next_point(cluster_info, v_j, z_j)
+            points[jj].append((v_j, z_j))
+            printv(f"\t\t\tNew point is: {(v_j, z_j)}")
         except NoPoints:
-            printv(f"\t\t\tCan't further increase v for price costraint, remove state {jj}")
-            del points[jj]
+            printv(f"\t\t\tCan't further increase v for price costraint")
         
         printv(f"\t\tPoints of the poly: {points[jj]}")
-        # truncate poly to desiderided profit if v_j of last point > desired_profit
-        if points[jj][-1][0] > desired_profit and len(points[jj])>1:
-            points[jj][-1] = truncate_poly(desired_profit, points[jj][-2:])
-            printv(f"\t\tChange last point to {points[jj][-1]}")
             
         printv("\t\t::::::::::::::::::::::")
     return points
@@ -135,8 +129,14 @@ def find_non_dominated_solution(points):
     if len(polygonal_chains) > 0:
         best_polygon = min(polygonal_chains.keys())
         for jj, poly in list(polygonal_chains.items())[1:]:
-            printv(f'\t\t...checking soluton with j={jj}')
-            if check_poly(poly, points[best_polygon]) is True:
+            segment = [[poly[count], poly[count+1]] for count in range(len(poly)-1) if poly[count][0] <= polygonal_chains[best_polygon][-1][0] <= poly[count+1][0]]
+            if segment == []:
+                # no points in common
+                return 0
+            import copy
+            poly_t = copy.deepcopy(poly)
+            poly_t[-1] = truncate_poly(polygonal_chains[best_polygon][-1][0], segment[0])
+            if check_poly(poly_t, points[best_polygon]) is True:
                 best_polygon = jj
                 printv(f"\t\tNew best polygon {jj}")
         best_polygon = [(best_polygon, [points[best_polygon][-1]])]
@@ -238,23 +238,33 @@ for i in range(1, items.N+1):
     print(f"final z value: {z}")
 
     for count, cluster in enumerate(candidate_states):
-        cluster['z_c'] = z_c[count]
         cluster['z'] = z[count]
 
     # v calculus 
     v_c = []
     v_o = []
+    q_c = []
+    d_c = []
     for c in candidate_states:
         v_cc = 0
         z = c["z"]
+        q = []
+        d = []
         # calculus of v for closed clusters
         for cc in c["C"]:
             p_min = items.get_item(cc[0]-1).price
             p_max = items.get_item(cc[-1]-1).price
+            cluster_price = min(p_min + z, p_max)
+            q.append(cluster_price)
+            sum_demand = 0
             for j in cc:
                 # contribution item j = dj * min{p−(K) + z, p+(K)}
-                contribution_j = items.get_item(j-1).demand * min(p_min + z, p_max)
-                v_cc += contribution_j
+                demand = items.get_item(j-1).demand
+                v_cc += demand * cluster_price
+                sum_demand += demand
+            d.append(sum_demand)
+        d_c.append(d)
+        q_c.append(q)
         v_c.append(v_cc)
 
         # estimates bound v on open clusters
@@ -274,10 +284,13 @@ for i in range(1, items.N+1):
     printv(f'v estimates for each closed open cluster {v_o}')
 
     for count, cluster in enumerate(candidate_states):
-        cluster['vc'] = v_c[count]
         cluster['v'] = [v_o[count][0] + v_c[count], v_o[count][1] + v_c[count]]
 
     print(candidate_states)
+    print(q_c)
+    print(d_c)
+    print(z_c)
+    print(v_c)
 
     # dominance check
     print("\nDominance check...")
@@ -290,30 +303,45 @@ for i in range(1, items.N+1):
             if len(s1["C"]) <= len(s2["C"]) and s1['z']<=s2['z'] and len(s1["O"]) == len(s2["O"]):
                 # s1 dominate s2
                 # check profit on closed cluster
-                """
                 # find stationary points
-                points = find_stationary_points(candidate_states, desired_profit)
+                mod_s1 = {'v': v_c[i1], 'z': z_c[i1], 'q': q_c[i1], 'd': d_c[i1], 's': [s[0] for s in s1['C']], 'e': [s[-1] for s in s1['C']]}
+                mod_s2 = {'v': v_c[i2], 'z': z_c[i2], 'q': q_c[i2], 'd': d_c[i2], 's': [s[0] for s in s2['C']], 'e': [s[-1] for s in s2['C']]}
+                print(f'\nChecking {i1} and {i2}')
+                print(mod_s1)
+                print("_--_")
+                print(mod_s2)
+                points = find_stationary_points({1:mod_s1, 2:mod_s2})
                 printv("\tList of points\n" + f"\t{points}")
                 # find non dominated solution
                 bestj = find_non_dominated_solution(points)
-                printv(f"\tNon dominated solution with j:{bestj}\n")
-                """
+                if bestj == 0:
+                    # no points in common
+                    printv("No points in common, skip...\n")
+                    continue
+                if bestj != 1:
+                    # if 2 is not dominated by 1 skip to next permutation
+                    printv(f"\tNon domintate:{bestj}, skip...\n")
+                    continue
+                
                 # find a valid permutation of a state that satisfy the two inequalities in all open cluster's pairs
                 s1_O = s1['O']
-                permutations_of_items = itertools.permutations(range(len(s1_O)), len(s1_O))
-                found = False
-                for perm in permutations_of_items:
-                    s2_reorder = [s2['O'][idx] for idx in perm]
-                    for c1, c2 in zip(s1_O, s2_reorder):
-                        p_minus_1 = items.get_item(c1[0]-1).price
-                        p_minus_2 = items.get_item(c2[0]-1).price
-                        D_1 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c1]))
-                        D_2 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c2]))
-                        if not((p_minus_1 >= p_minus_2) and (D_1 >= D_2)):
-                            break
-                        found = True
+                found = True
+                if len(s1_O) > 0:
+                    permutations_of_items = itertools.permutations(range(len(s1_O)), len(s1_O))
+                    found = False
+                    for perm in permutations_of_items:
+                        s2_reorder = [s2['O'][idx] for idx in perm]
+                        for c1, c2 in zip(s1_O, s2_reorder):
+                            p_minus_1 = items.get_item(c1[0]-1).price
+                            p_minus_2 = items.get_item(c2[0]-1).price
+                            D_1 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c1]))
+                            D_2 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c2]))
+                            if not((p_minus_1 >= p_minus_2) and (D_1 >= D_2)):
+                                print("Dont satisfy constranint on open cluster\n")
+                                break
+                            found = True
                 if found:
-                    printv(f'Found that state {i2} is dominated by {i1}')
+                    printv(f'Found that state {i2} is dominated by {i1}\n')
                     print(f'{i1}: {s1}')
                     print(f'{i2}: {s2}')
                     dominated.append(i2)
