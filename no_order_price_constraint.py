@@ -82,9 +82,7 @@ def find_next_point(cluster_info, v_j, z_j):
     
     demand = 0
     for c in increasable_cluster:
-        s = cluster_info[c][0]
-        e = cluster_info[c][1]
-        demand += items.items[e-1].cumdemand - (items.items[s-2].cumdemand if s!=1 else 0)
+        demand += cluster_info[c][3]
         cluster_info[c][2] += value
     printv(f'\t\t\tThe min increase is {value} for the clusters {increasable_cluster}, with demand {demand}')
     
@@ -99,9 +97,9 @@ def find_stationary_points(candidates, v_oo, desired_profit):
     """
     v_j = candidates['v']
     z_j = candidates['z']
-    seq_data = [candidates[key] for key in ['s', 'e', 'q']]
+    seq_data = [candidates[key] for key in ['s', 'e', 'q', 'd']]
     cluster_info = [[data[c_idx] for data in seq_data] for c_idx in range(0, len(seq_data[0]))]
-    # cluster_info = [start cluster, end cluster, price]
+    # cluster_info = [start cluster, end cluster, price, demand]
 
     printv(f'\t\tThe cluster are {cluster_info} with profit {v_j}')
     
@@ -239,8 +237,6 @@ for i in range(1, items.N+1):
     # v calculus 
     v_c = []
     v_o = []
-    q_c = []
-    d_c = []
 
     points_list = []
     original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
@@ -264,8 +260,6 @@ for i in range(1, items.N+1):
                 v_cc += demand * cluster_price
                 sum_demand += demand
             d.append(sum_demand)
-        d_c.append(d)
-        q_c.append(q)
         v_c.append(v_cc)
 
         # estimates bound v on open clusters
