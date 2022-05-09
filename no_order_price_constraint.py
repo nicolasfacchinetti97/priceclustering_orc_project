@@ -11,22 +11,24 @@ import configparser
 
 def extension1(last_state, point):
     C = last_state["C"].copy()
-    O = last_state["O"].copy()
     candidates = []
-    for k in O:
-        O.remove(k)
-        O.append(k + [point])
-        candidates.append({'C': C, 'O':O})
+    for k in last_state["O"]:
+        o_mod = last_state["O"].copy()
+        print(o_mod)
+        o_mod.remove(k)
+        o_mod.extend([k + [point]])
+        candidates.append({'C': C, 'O':o_mod})
     return candidates
 
 def extension2(last_state, point):
-    C = last_state["C"].copy()
     O = last_state["O"].copy()
     candidates = []
     for k in O:
-        O.remove(k)
-        C.append(k + [point])
-        candidates.append({'C': C, 'O':O})
+        o_mod = O.copy()
+        o_mod.remove(k)
+        c_mod = last_state["C"].copy()
+        c_mod.extend([k + [point]])
+        candidates.append({'C': c_mod, 'O':o_mod})
     return candidates
 
 def extension3(last_state, point):
@@ -50,17 +52,23 @@ def value_in_segmentp1p2(p1, p2, val):
 
 def check_poly(poly, best):
     """check if best is dominated by poly"""
+    print(poly)
+    found = False
     for point in poly:
-        found = False
+        
         for p1, p2 in zip(best, best[1:]):
             # find segment of best that contains point
             if p1[0] < point[0] <= p2[0]:
+                found = True
                 best_poly_value_in_point = value_in_segmentp1p2(p1, p2, point[0])
-                printv(f"\t\t\tSegment of best: {p1}, {p2}. Point of new poly to check {point}.\n" + 
-                        f"\t\t\tValue in {point[0]} of best is {best_poly_value_in_point}")
+                printv(f"\t\tSegment of best: {p1}, {p2}.\n\t\tNew poly :{point}, " + 
+                        f"value in best {point[0], best_poly_value_in_point}")
                 if point[1] > best_poly_value_in_point:
                     printv("\t\t\tpoint of poly above the best segment")
                     return False
+    if not found:
+        printv("No point in common, no dominance relation...")
+        return False
     return True
 
 def truncate_poly(x_p, points):
@@ -91,7 +99,7 @@ def find_next_point(cluster_info, v_j, z_j):
     printv(F'\t\t\tNew cluster info {cluster_info} with profit {v_j}\n')
     return cluster_info, v_j, z_j
 
-def find_stationary_points(candidates, v_oo, desired_profit):
+def find_stationary_points(candidates, desired_profit):
     """
     for each candidate state found with the extension procedure search the sationary points
     """
@@ -128,11 +136,23 @@ def find_non_dominated_solution(points):
     # find the non dominated polygonal chain
     best_polygon = []
     if len(polygonal_chains) > 0:
-        best_polygon = min(polygonal_chains.keys())
+        best_polygon = next(iter(polygonal_chains))
         for jj, poly in list(polygonal_chains.items())[1:]:
-            if check_poly(poly, points[best_polygon]) is True:
+            # put in poly all the points of best
+            best = points[best_polygon]
+            mod_poly = []
+            
+            for p1, p2 in zip(poly, poly[1:]):
+                mod_poly.append(p1)
+                for p_best in best:
+                    # find segment of poly where find the points of best
+                    if p1[0] < p_best[0] <= p2[0]:
+                        new_point_poly = value_in_segmentp1p2(p1, p2, p_best[0])
+                        mod_poly.append((p_best[0], new_point_poly))
+            mod_poly.append(poly[-1])
+
+            if check_poly(mod_poly, best) is True:
                 best_polygon = jj
-                printv(f"\t\tNew best polygon {jj}")
         best_polygon = [(best_polygon, [points[best_polygon][-1]])]
     satisfy_profit += best_polygon
     # compare the eventual best polygonal chain with the points that exceed desired profit and choose the one with lower z value
@@ -163,24 +183,29 @@ def calc_z(state, items, i):
     # take the max z in open/closed clusters z call
     return  max(max(z_c), max(z_o))
 
+
+def calc_closed_clusters(state, items, z):
+    q = []
+    d = []
+    v_c = 0
+    # calculus of v for closed clusters
+    for c in state["C"]:
+        p_min = items.get_item(c[0]-1).price
+        p_max = items.get_item(c[-1]-1).price
+        cluster_price = min(p_min + z, p_max)
+        q.append(cluster_price)
+        sum_demand = 0
+        for j in c:
+            # contribution item j = dj * min{p−(K) + z, p+(K)}
+            demand = items.get_item(j-1).demand
+            v_c += demand * cluster_price
+            sum_demand += demand
+        d.append(sum_demand)
+    return q, d, v_c
+
 def calc_v(state, items, i, z):
-            v_c = 0
-        
-            q = []
-            d = []
             # calculus of v for closed clusters
-            for c in state["C"]:
-                p_min = items.get_item(c[0]-1).price
-                p_max = items.get_item(c[-1]-1).price
-                cluster_price = min(p_min + z, p_max)
-                q.append(cluster_price)
-                sum_demand = 0
-                for j in c:
-                    # contribution item j = dj * min{p−(K) + z, p+(K)}
-                    demand = items.get_item(j-1).demand
-                    v_c += demand * cluster_price
-                    sum_demand += demand
-                d.append(sum_demand)
+            q, d, v_c = calc_closed_clusters(state, items, z)
 
             # estimates bound v on open clusters
             v_o = [0, 0]
@@ -203,7 +228,6 @@ def calc_v(state, items, i, z):
 config = configparser.ConfigParser()
 config.read("config.ini")
 instance_path = config['inputfile']['fileName']
-num_clusters = int(config['inputfile']['numClusters'])
 profit_margin = float(config['inputfile']['profitMargin'])
 verbose = int(config['inputfile']['verbose'])
 
@@ -256,7 +280,7 @@ for i in range(1, items.N+1):
     points_list = []
     original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
     desired_profit = original_profit*profit_margin
-    print(f"For itemset to {i} with a margin of {profit_margin} the desired profit is {desired_profit}")
+    printv(f"For itemset to {i} with a margin of {profit_margin} the desired profit is {desired_profit}")
     # compute v, z and the points for dominance checking
     for c in candidate_states:
         # calc z for the candidate state
@@ -266,13 +290,9 @@ for i in range(1, items.N+1):
         v, q, d = calc_v(c, items, i, z)
         c["v"] = v
         mod_s1 = {'v': v[0], 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
-        print(c)
-        points = find_stationary_points(mod_s1, v[1]-v[0], desired_profit)
+        printv(c)
+        points = find_stationary_points(mod_s1, desired_profit)
         points_list.append(points)
-        
-
-    print(candidate_states)
-    print(points_list)
     
     # dominance check
     print("\nDominance check...")
@@ -283,10 +303,9 @@ for i in range(1, items.N+1):
             s1 = candidate_states[i1]
             s2 = candidate_states[i2]
             if len(s1["C"]) <= len(s2["C"]) and s1['z']<=s2['z'] and len(s1["O"]) == len(s2["O"]):
-                # s1 dominate s2
-                # check profit on closed cluster
-                # find stationary points
-                print(f'\nChecking {i1} and {i2}\n{i1}: {s1}\n{i2}: {s2}')
+                # s1 dominate s2 if...
+                # ... check profit clusters
+                printv(f'\nChecking {i1} and {i2}\n{i1}: {s1}\n{i2}: {s2}')
                 a = points_list[i1]
                 b = points_list[i2]
                 p = {i1:a, i2:b}
@@ -298,7 +317,7 @@ for i in range(1, items.N+1):
                     printv(f"\tNon domintate:{bestj}, skip...\n")
                     continue
                 
-                # find a valid permutation of a state that satisfy the two inequalities in all open cluster's pairs
+                # ... find a valid permutation of a state that satisfy the two inequalities in all open cluster's pairs
                 s1_O = s1['O']
                 found = True
                 if len(s1_O) > 0:
@@ -312,11 +331,11 @@ for i in range(1, items.N+1):
                             D_1 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c1]))
                             D_2 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c2]))
                             if not((p_minus_1 >= p_minus_2) and (D_1 >= D_2)):
-                                print("Dont satisfy constranint on open cluster\n")
+                                printv("Dont satisfy constranint on open cluster\n")
                                 break
                             found = True
                         if found:
-                            print(f"Itemsets in {s1_O} and {s2_reorder} satisfy constraint on open clusters.")
+                            printv(f"Itemsets in {s1_O} and {s2_reorder} satisfy constraint on open clusters.")
                             break      
                 if found:
                     printv(f'Found that state {i2} is dominated by {i1}\n')
@@ -329,7 +348,36 @@ for i in range(1, items.N+1):
     
     printv("______________________________________________________________________________________________________________________")
 
+print('Computed all the state labels:')
+print(*(f'\tItem {x[0]}\n {x[1]}' for x in states.items()), sep='\n')
 
-for s in states:
-    print(s)
-    print(states[s])
+# ============================================================================================================
+# terminantion check
+print(f'\nTerminantion check for optimal values.')
+
+last_states = states[items.N]
+original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: items.N]))
+desired_profit = original_profit*profit_margin
+printv(f'\nFor {items.N} items the original profit is {original_profit} and the desired profit is {desired_profit}')
+optimal_pairs = {}
+for count, state in enumerate(last_states):
+    z = state['z']
+    v = state['v'][0]
+    if v >= desired_profit:
+        printv(f'{state} satisfy profit margin.')
+    else:
+        printv(f'{state} don\'t satisfy profit margin, extend the state...')
+        # find the stationary points and take only the last one, which correponds to the desired profit
+        q, d, _ = calc_closed_clusters(state, items, z)
+        mod_s = {'v': v, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in state['C']], 'e': [s[-1] for s in state['C']]}
+        v_z_last_point = find_stationary_points(mod_s, desired_profit)[-1]
+        v = v_z_last_point[0]
+        z = v_z_last_point[1]
+    if v >= desired_profit:
+        printv("State reach the desired profit!\n")
+        optimal_pairs[count] = (v,z)
+    else:
+        printv("State don't reach the desired profit, removed.\n")
+
+print("\nThe optimal labels are:")
+print(*(f'\tWith {len(last_states[x[0]]["C"])} state {last_states[x[0]]}\n\tv: {x[1][0]} -> z: {x[1][1]}' for x in optimal_pairs.items()), sep='\n')
