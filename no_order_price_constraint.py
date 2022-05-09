@@ -43,7 +43,6 @@ def extension4(last_state, point):
     O.append([point])
     return {'C': C, 'O':O}
 
-
 class NoPoints(Exception):
     pass
 
@@ -267,6 +266,10 @@ for i in range(1, items.N+1):
         candidate_states.extend(extension2(s, i))
         candidate_states.append(extension3(s, i))
         candidate_states.append(extension4(s, i))
+
+    # sort the open clusters in ascending order of their first point
+    for c in candidate_states:
+        c["O"].sort()
     printv(candidate_states)
     
     limit = items.N - i
@@ -274,8 +277,6 @@ for i in range(1, items.N+1):
     candidate_states = [c for c in candidate_states if len(c["O"]) <= limit]
     printv(f"Removal of states that violate |O| <= n-i = {limit}, for a total of {oldl - len(candidate_states)} states")
     printv(candidate_states)
-    
-    # sort the open clusters in ascending order of their first point
 
     points_list = []
     original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
