@@ -14,7 +14,6 @@ def extension1(last_state, point):
     candidates = []
     for k in last_state["O"]:
         o_mod = last_state["O"].copy()
-        print(o_mod)
         o_mod.remove(k)
         o_mod.extend([k + [point]])
         candidates.append({'C': C, 'O':o_mod})
@@ -332,7 +331,7 @@ for i in range(1, items.N+1):
                             D_1 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c1]))
                             D_2 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c2]))
                             if not((p_minus_1 >= p_minus_2) and (D_1 >= D_2)):
-                                printv("Dont satisfy constranint on open cluster\n")
+                                printv(f"Permutation {perm} don't satisfy constranint on open cluster\n")
                                 break
                             found = True
                         if found:
