@@ -1,3 +1,4 @@
+from email.policy import default
 from instance import instance
 from item import item
 
@@ -17,7 +18,7 @@ def check_poly(poly, best):
         found = False
         for p1, p2 in zip(best, best[1:]):
             # find segment of best that contains point
-            if p1[0] < point[0] <= p2[0]:
+            if p1[0] <= point[0] <= p2[0]:
                 best_poly_value_in_point = value_in_segmentp1p2(p1, p2, point[0])
                 printv(f"\t\t\tSegment of best: {p1}, {p2}. Point of new poly to check {point}.\n" + 
                         f"\t\t\tValue in {point[0]} of best is {best_poly_value_in_point}")
@@ -106,6 +107,7 @@ def find_stationary_points(candidates, desired_profit):
     for each candidate state found with the extension procedure search the sationary points
     """
     points = {}
+    not_satisfy = {}
     for jj in candidates.keys():
         v_j = candidates[jj]['v']
         z_j = candidates[jj]['z']
@@ -123,7 +125,7 @@ def find_stationary_points(candidates, desired_profit):
                 printv(f"\t\t\tNew point is: {(v_j, z_j)}")
         except NoPoints:
             printv(f"\t\t\tCan't further increase v for price costraint, remove state {jj}")
-            del points[jj]
+            not_satisfy[jj] = True
         
         printv(f"\t\tPoints of the poly: {points[jj]}")
         # truncate poly to desiderided profit if v_j of last point > desired_profit
@@ -132,12 +134,13 @@ def find_stationary_points(candidates, desired_profit):
             printv(f"\t\tChange last point to {points[jj][-1]}")
             
         printv("\t\t::::::::::::::::::::::")
-    return points
+    return points, not_satisfy
 
-def find_non_dominated_solution(points):
+def find_non_dominated_solution(points, not_satisfy):
     # divide polygonal chains and solution's points thats satisfy the desidered profit
-    polygonal_chains = {x[0]: x[1] for x in points.items() if len(x[1])>1}
-    satisfy_profit = [(x[0], x[1]) for x in points.items() if len(x[1])==1]
+    polygonal_chains = {x[0]: x[1] for x in points.items() if (len(x[1])>1 and not not_satisfy.get(x[0], False))}
+    satisfy_profit = [(x[0], x[1]) for x in points.items() if (len(x[1])==1 and not not_satisfy.get(x[0], False))]
+    printv(f"\tPolygonal Chains: {polygonal_chains}\n\tPoints: {satisfy_profit}")
     # find the non dominated polygonal chain
     best_polygon = []
     if len(polygonal_chains) > 0:
@@ -225,11 +228,16 @@ for i in range(1, items.N+1):
                 '\tStationary points calculus...')
         
         # find stationary points
-        points = find_stationary_points(candidate_states, desired_profit)
+        points, not_satisfy = find_stationary_points(candidate_states, desired_profit)
+        printv(f'\tState to remove {not_satisfy}')
         printv("\tList of points\n" + f"\t{points}")
-
         # find non dominated solution
-        bestj = find_non_dominated_solution(points)
+        if len(points) != len(not_satisfy):
+            bestj = find_non_dominated_solution(points, not_satisfy)
+        else:
+            # idk what sol to save, only a caveat for working the 
+            bestj = list(points.keys())[0]
+            printv(f"\tNo solutions reach the desired profit, {bestj} picked.")
         printv(f"\tNon dominated solution with j:{bestj}\n")
         # add new labels to state set
         pairs[i,k] = {}
@@ -258,18 +266,26 @@ for key in pairs:
 
     z = pairs[key]['z']
     v = pairs[key]['v']
+    feasibile = True
     if v >= desired_profit:
         printv(f'{key} -> {pairs[key]} satisfy profit margin.')
     else:
         printv(f'{key} -> {pairs[key]} not satisfy profit margin, extend the state...')
         # find the stationary points and take only the last one, which correponds to the desired profit
-        v_z_last_point = find_stationary_points({key : pairs[key]}, desired_profit)[key][-1]
-        v = v_z_last_point[0]
-        z = v_z_last_point[1]
-        printv(f'Increase z to {z} and v to {v}')
-    optimal_pairs[key] = {}
-    optimal_pairs[key]['z'] = z
-    optimal_pairs[key]['v'] = v
+        points, dont_satisfy = find_stationary_points({key : pairs[key]}, desired_profit)
+        if dont_satisfy.get(key, False):
+            feasibile = False
+            printv("State don't reach the desired profit... reject solution")
+        else:
+            v_z_last_point = points[key][-1]
+            v = v_z_last_point[0]
+            z = v_z_last_point[1]
+            printv(f'Increase z to {z} and v to {v}')
+            
+    if feasibile:       
+        optimal_pairs[key] = {}
+        optimal_pairs[key]['z'] = z
+        optimal_pairs[key]['v'] = v
 
 print("\nThe optimal labels are:")
 print(*(f'\tState {x[0]} -> {x[1]}' for x in optimal_pairs.items()), sep='\n')
