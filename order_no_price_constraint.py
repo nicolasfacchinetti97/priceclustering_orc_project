@@ -1,3 +1,4 @@
+import sys
 from instance import instance
 from item import item
 
@@ -7,8 +8,9 @@ import configparser
 
 
 # read configuration file
+fconfig = sys.argv[1]
 config = configparser.ConfigParser()
-config.read("config.ini")
+config.read(fconfig)
 instance_path = config['inputfile']['fileName']
 num_clusters = int(config['inputfile']['numClusters'])
 profit_margin = float(config['inputfile']['profitMargin'])

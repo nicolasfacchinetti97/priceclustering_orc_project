@@ -1,5 +1,4 @@
-from more_itertools import first, last
-from numpy import True_
+import sys
 from instance import instance
 from item import item
 
@@ -223,8 +222,9 @@ def calc_v(state, items, i, z):
 #----------------------------------------------------------------------------------------------------------
 
 # read configuration file
+fconfig = sys.argv[1]
 config = configparser.ConfigParser()
-config.read("config.ini")
+config.read(fconfig)
 instance_path = config['inputfile']['fileName']
 profit_margin = float(config['inputfile']['profitMargin'])
 verbose = int(config['inputfile']['verbose'])
