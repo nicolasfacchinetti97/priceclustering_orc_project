@@ -131,3 +131,4 @@ dmypy.json
 # instances folder
 instances/
 test.txt
+test_algo/

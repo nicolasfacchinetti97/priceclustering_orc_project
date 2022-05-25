@@ -179,7 +179,7 @@ k is the number of cluster used to group items in [1, i]
 pairs = {}
 
 # base case computation
-print('Base cases creation...\n')
+printv('Base cases creation...\n')
 for h in range(0, items.N):
     pairs[h+1,1] = {}
     pairs[h+1, 1]['z'] = (items.get_item(h).price - items.get_item(0).price)/2
@@ -192,7 +192,7 @@ for h in range(0, items.N):
 printv(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
 
 # extension of the states
-print("\nExtension of the labes...")
+printv("\nExtension of the labes...")
 """
 scans set N with index i ranging from 0 to N-1
 index used to retrive items (starting from 0), when used for states remember to +1
@@ -250,13 +250,13 @@ for i in range(1, items.N+1):
         printv(f'\tState {(i,k)} -> {list(pairs[i,k].items())}')
         printv("______________________________________________________________________________________________________________________")
 
-print('Computed all the state labels:')
+printv('Computed all the state labels:')
 pairs = {key:values for (key, values) in sorted(pairs.items())}
-print(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
+printv(*(f'\tState {x[0]} -> {x[1]}' for x in pairs.items()), sep='\n')
 
 # ============================================================================================================
 # terminantion check
-print(f'\nTerminantion check for optimal values.')
+printv(f'\nTerminantion check for optimal values.')
 
 optimal_pairs = {}
 for key in pairs:
@@ -288,5 +288,5 @@ for key in pairs:
         optimal_pairs[key]['z'] = z
         optimal_pairs[key]['v'] = v
 
-print("\nThe optimal labels are:")
-print(*(f'\tState {x[0]} -> {x[1]}' for x in optimal_pairs.items()), sep='\n')
+printv("\nThe optimal labels are:")
+printv(*(f'\tState {x[0]} -> {x[1]}' for x in optimal_pairs.items()), sep='\n')

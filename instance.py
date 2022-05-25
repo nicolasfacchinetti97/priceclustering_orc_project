@@ -19,7 +19,6 @@ class instance:
         For each row is crated an item object which is apppended to a list that is finally returned
         Before return is checked that the number of ridden rows is equal to the first row of the file which indicate the number of items
         """
-        print(f"Openening instance file: {filename}.\n")
         with open(filename, 'r') as f:
             # read number of items
             num_items = int(f.readline())

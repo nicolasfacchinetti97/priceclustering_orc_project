@@ -49,7 +49,7 @@ def value_in_segmentp1p2(p1, p2, val):
 
 def check_poly(poly, best):
     """check if best is dominated by poly"""
-    print(poly)
+    printv(poly)
     found = False
     for point in poly:
         
@@ -240,13 +240,13 @@ i in N is the last considered item
 states = {}
 
 # base case computation
-print('Base cases creation...\n')
+printv('Base cases creation...\n')
 states[0] = [{"C":[], "O":[], "z":0, "v":0}]
 
 printv(*(f'\tState {x[0]} -> {x[1]}' for x in states.items()), sep='\n')
 
 # extension of the states
-print("\nExtension of the labes...")
+printv("\nExtension of the labes...")
 """
 scans set N with index i ranging from 1 to N
 index used to manange states and items (starting from 1), when used for retrive elements remeber -1 (starting from 0)
@@ -295,7 +295,7 @@ for i in range(1, items.N+1):
         points_list.append(points)
     
     # dominance check
-    print("\nDominance check...")
+    printv("\nDominance check...")
     permut = list(itertools.permutations(range(len(candidate_states)),2))
     dominated = []
     for i1, i2 in permut:
@@ -348,12 +348,12 @@ for i in range(1, items.N+1):
     
     printv("______________________________________________________________________________________________________________________")
 
-print('Computed all the state labels:')
-print(*(f'\tItem {x[0]}\n {x[1]}' for x in states.items()), sep='\n')
+printv('Computed all the state labels:')
+printv(*(f'\tItem {x[0]}\n {x[1]}' for x in states.items()), sep='\n')
 
 # ============================================================================================================
 # terminantion check
-print(f'\nTerminantion check for optimal values.')
+printv(f'\nTerminantion check for optimal values.')
 
 last_states = states[items.N]
 original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: items.N]))
@@ -379,5 +379,5 @@ for count, state in enumerate(last_states):
     else:
         printv("State don't reach the desired profit, removed.\n")
 
-print("\nThe optimal labels are:")
-print(*(f'\tWith {len(last_states[x[0]]["C"])} state {last_states[x[0]]}\n\tv: {x[1][0]} -> z: {x[1][1]}' for x in optimal_pairs.items()), sep='\n')
+printv("\nThe optimal labels are:")
+printv(*(f'\tWith {len(last_states[x[0]]["C"])} state {last_states[x[0]]}\n\tv: {x[1][0]} -> z: {x[1][1]}' for x in optimal_pairs.items()), sep='\n')
