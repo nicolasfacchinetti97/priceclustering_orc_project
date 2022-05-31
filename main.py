@@ -4,16 +4,22 @@ import datetime
 c1 = "order_no_price_constraint.py"
 c2 = "order_price_constraint.py"
 c3 = "no_order_price_constraint.py"
+c = [c1, c2, c3]
 
-i100_1 = "test_algo/100/100_10.ini"
-i100_2 = "test_algo/100/100_15.ini"
-i100_3 = "test_algo/100/100_20.ini"
+inst = "test_algo/{i}/{i}_{c}.ini"
 
-instances = [[c1,i100_1], [c1,i100_2], [c1, i100_3]]
+i = [inst.format(i=100, c=c) for c in [10,15,20]]
+i += [inst.format(i=200, c=c) for c in [10,15,20]]
+i += [inst.format(i=400, c=c) for c in [20,30,40]]
+i += [inst.format(i=800, c=c) for c in [20,30,40]]
+
+instances = [(version , instance) for version in c for instance in i ]
+res = {}
 for c, i in instances:
     print(f'Case {c} instance {i}')
     start = datetime.datetime.now()
     os.system(f"python {c} {i}")
     end = datetime.datetime.now()
     comp = end-start
-    print(f"\nSecond elapsed: {comp.total_seconds()}")
+    res[(c,i)] = comp
+    print(f"\nSecond elapsed: {comp.total_seconds()}\n")
