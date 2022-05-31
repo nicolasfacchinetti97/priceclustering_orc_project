@@ -277,8 +277,11 @@ for i in range(1, items.N+1):
     original_profit = sum(map(lambda item: item.demand*item.price, items.items[0: i]))
     desired_profit = original_profit*profit_margin
     printv(f"For itemset to {i} with a margin of {profit_margin} the desired profit is {desired_profit}")
+
     # compute v, z and the points for dominance checking
-    for c in candidate_states:
+    to_keep = []
+    for count, c in enumerate(candidate_states):
+        print(f'\n{c}')
         # calc z for the candidate state
         z = calc_z(c, items, i)
         c["z"] = z
@@ -295,16 +298,29 @@ for i in range(1, items.N+1):
         mod_s1 = {'v': v_c, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
         printv(c)
         points = find_stationary_points(mod_s1, bound_profit)
-        points_list.append(points)
+        profit_solution = points[-1][0] + v_o[0]
+        printv(f'The profit of the solution with open is {profit_solution}')
+        if profit_solution >= desired_profit:
+            printv("Solution can reach desired profit with open cluster")
+            points_list.append(points)
+            to_keep.append(count)
+        else:
+            printv("Solution cant reach with open cluster, discarded")
     
+    print(candidate_states)
+    candidate_states = [candidate_states[i] for i in to_keep]
+    print(candidate_states)
+
+    dominated = []    
     # dominance check
     printv("\nDominance check...")
     permut = list(itertools.permutations(range(len(candidate_states)),2))
-    dominated = []
     for i1, i2 in permut:
         if i1 not in dominated and i2 not in dominated:
             s1 = candidate_states[i1]
             s2 = candidate_states[i2]
+            print(s1)
+            print(s2)
             if len(s1["C"]) <= len(s2["C"]) and s1['z']<=s2['z'] and len(s1["O"]) == len(s2["O"]):
                 # s1 dominate s2 if...
                 # ... check profit clusters
@@ -334,7 +350,7 @@ for i in range(1, items.N+1):
                             D_1 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c1]))
                             D_2 = sum(map(lambda i: i.demand, [items.items[idx-1] for idx in c2]))
                             if not((p_minus_1 >= p_minus_2) and (D_1 >= D_2)):
-                                printv(f"Permutation {perm} don't satisfy constranint on open cluster\n")
+                                printv(f"Permutation {perm} don't satisfy constranint on open cluster")
                                 break
                             found = True
                         if found:
@@ -344,7 +360,7 @@ for i in range(1, items.N+1):
                     printv(f'Found that state {i2} is dominated by {i1}\n')
                     dominated.append(i2)
                 else:
-                    printv('No permutation of open clusters satisfy constraints, cant establish dominance')
+                    printv('No permutation of open clusters satisfy constraints, cant establish dominance\n')
     candidate_states = [c for count, c in enumerate(candidate_states) if count not in dominated]
     printv(f'Removed {len(dominated)} states: {dominated}')
 
