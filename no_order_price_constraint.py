@@ -181,7 +181,7 @@ def calc_z(state, items, i):
     return  max(max(z_c), max(z_o))
 
 
-def calc_closed_clusters(state, items, z):
+def calc_v_closed_clusters(state, items, z):
     q = []
     d = []
     v_c = 0
@@ -200,10 +200,7 @@ def calc_closed_clusters(state, items, z):
         d.append(sum_demand)
     return q, d, v_c
 
-def calc_v(state, items, i, z):
-            # calculus of v for closed clusters
-            q, d, v_c = calc_closed_clusters(state, items, z)
-
+def calc_v_open_clusters(state, items, i, z):
             # estimates bound v on open clusters
             v_o = [0, 0]
             for c in state["O"]:
@@ -216,8 +213,7 @@ def calc_v(state, items, i, z):
                     v_o[0] += lower_bound
                     v_o[1] += high_bound
 
-            v = [v_o[0] + v_c, v_o[1] + v_c]
-            return v, q, d
+            return v_o
 
 #----------------------------------------------------------------------------------------------------------
 
@@ -287,11 +283,18 @@ for i in range(1, items.N+1):
         z = calc_z(c, items, i)
         c["z"] = z
         # calc v for the candidate state
-        v, q, d = calc_v(c, items, i, z)
+        q, d, v_c = calc_v_closed_clusters(c, items, z)
+        v_o = calc_v_open_clusters(c, items, i, z)
+        print(v_c)
+        print(v_o)
+        v = [v_o[0] + v_c, v_o[1] + v_c]
         c["v"] = v
-        mod_s1 = {'v': v[0], 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
+        # bound on desider profit
+        bound_profit = desired_profit - v_o[0]
+        printv(f'The desider profit without the bound {bound_profit}')
+        mod_s1 = {'v': v_c, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
         printv(c)
-        points = find_stationary_points(mod_s1, desired_profit)
+        points = find_stationary_points(mod_s1, bound_profit)
         points_list.append(points)
     
     # dominance check
@@ -340,6 +343,8 @@ for i in range(1, items.N+1):
                 if found:
                     printv(f'Found that state {i2} is dominated by {i1}\n')
                     dominated.append(i2)
+                else:
+                    printv('No permutation of open clusters satisfy constraints, cant establish dominance')
     candidate_states = [c for count, c in enumerate(candidate_states) if count not in dominated]
     printv(f'Removed {len(dominated)} states: {dominated}')
 
@@ -368,7 +373,7 @@ for count, state in enumerate(last_states):
     else:
         printv(f'{state} don\'t satisfy profit margin, extend the state...')
         # find the stationary points and take only the last one, which correponds to the desired profit
-        q, d, _ = calc_closed_clusters(state, items, z)
+        q, d, _ = calc_v_closed_clusters(state, items, z)
         mod_s = {'v': v, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in state['C']], 'e': [s[-1] for s in state['C']]}
         v_z_last_point = find_stationary_points(mod_s, desired_profit)[-1]
         v = v_z_last_point[0]
