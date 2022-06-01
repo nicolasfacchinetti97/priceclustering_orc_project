@@ -119,12 +119,13 @@ def find_stationary_points(candidates, desired_profit):
     
     printv(f"\t\tPoints of the poly: {points}")
     # truncate poly to desiderided profit if v_j of last point > desired_profit
-    if points[-1][0] > desired_profit and len(points)>1:
+    max_profit = points[-1][0]
+    if max_profit > desired_profit and len(points)>1:
         points[-1] = truncate_poly(desired_profit, points[-2:])
         printv(f"\t\tChange last point to {points[-1]}")
         
     printv("\t\t::::::::::::::::::::::")
-    return points
+    return points, max_profit
 
 def find_non_dominated_solution(points):
     # divide polygonal chains and solution's points thats satisfy the desidered profit
@@ -297,8 +298,8 @@ for i in range(1, items.N+1):
         printv(f'The desider profit without the bound {bound_profit}')
         mod_s1 = {'v': v_c, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
         printv(c)
-        points = find_stationary_points(mod_s1, bound_profit)
-        profit_solution = points[-1][0] + v_o[0]
+        points, max_profit = find_stationary_points(mod_s1, bound_profit)
+        profit_solution = max_profit + v_o[0]
         printv(f'The profit of the solution with open is {profit_solution}')
         if profit_solution >= desired_profit:
             printv("Solution can reach desired profit with open cluster")
@@ -306,10 +307,8 @@ for i in range(1, items.N+1):
             to_keep.append(count)
         else:
             printv("Solution cant reach with open cluster, discarded")
-    
-    print(candidate_states)
+
     candidate_states = [candidate_states[i] for i in to_keep]
-    print(candidate_states)
 
     dominated = []    
     # dominance check
@@ -319,22 +318,21 @@ for i in range(1, items.N+1):
         if i1 not in dominated and i2 not in dominated:
             s1 = candidate_states[i1]
             s2 = candidate_states[i2]
-            print(s1)
-            print(s2)
             if len(s1["C"]) <= len(s2["C"]) and s1['z']<=s2['z'] and len(s1["O"]) == len(s2["O"]):
                 # s1 dominate s2 if...
                 # ... check profit clusters
                 printv(f'\nChecking {i1} and {i2}\n{i1}: {s1}\n{i2}: {s2}')
-                a = points_list[i1]
-                b = points_list[i2]
-                p = {i1:a, i2:b}
-                printv("\tList of points\n" + f"\t{p}")
-                # find non dominated solution
-                bestj = find_non_dominated_solution(p)
-                if bestj == i2:
-                    # if 2 is not dominated by 1 skip to next permutation
-                    printv(f"\tNon domintate:{bestj}, skip...\n")
-                    continue
+                if len(s1["C"]) > 0:
+                    a = points_list[i1]
+                    b = points_list[i2]
+                    p = {i1:a, i2:b}
+                    printv("\tList of points\n" + f"\t{p}")
+                    # find non dominated solution
+                    bestj = find_non_dominated_solution(p)
+                    if bestj == i2:
+                        # if 2 is not dominated by 1 skip to next permutation
+                        printv(f"\tNon domintate:{bestj}, skip...\n")
+                        continue
                 
                 # ... find a valid permutation of a state that satisfy the two inequalities in all open cluster's pairs
                 s1_O = s1['O']
@@ -391,7 +389,8 @@ for count, state in enumerate(last_states):
         # find the stationary points and take only the last one, which correponds to the desired profit
         q, d, _ = calc_v_closed_clusters(state, items, z)
         mod_s = {'v': v, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in state['C']], 'e': [s[-1] for s in state['C']]}
-        v_z_last_point = find_stationary_points(mod_s, desired_profit)[-1]
+        points, _ = find_stationary_points(mod_s, desired_profit)
+        v_z_last_point = points[-1]
         v = v_z_last_point[0]
         z = v_z_last_point[1]
     if v >= desired_profit:
