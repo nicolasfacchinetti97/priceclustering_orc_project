@@ -132,3 +132,4 @@ dmypy.json
 instances/
 test.txt
 test_algo/
+res.txt
