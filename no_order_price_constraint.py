@@ -1,3 +1,4 @@
+from os import remove
 import sys
 from instance import instance
 from item import item
@@ -279,6 +280,9 @@ for i in range(1, items.N+1):
     desired_profit = original_profit*profit_margin
     printv(f"For itemset to {i} with a margin of {profit_margin} the desired profit is {desired_profit}")
 
+    # find lower bound profit on item after i
+    lb_profit_after_i = sum([i.price*i.demand for i in items.items[i:]])
+
     # compute v, z and the points for dominance checking
     to_keep = []
     for count, c in enumerate(candidate_states):
@@ -293,14 +297,15 @@ for i in range(1, items.N+1):
         print(v_o)
         v = [v_o[0] + v_c, v_o[1] + v_c]
         c["v"] = v
-        # bound on desider profit
+        # bound on desired profit
         bound_profit = desired_profit - v_o[0]
-        printv(f'The desider profit without the bound {bound_profit}')
+        printv(f'The desired profit without the bound {bound_profit}')
         mod_s1 = {'v': v_c, 'z': z, 'q': q, 'd': d, 's': [s[0] for s in c['C']], 'e': [s[-1] for s in c['C']]}
         printv(c)
         points, max_profit = find_stationary_points(mod_s1, bound_profit)
-        profit_solution = max_profit + v_o[0]
-        printv(f'The profit of the solution with open is {profit_solution}')
+        # find the max profit of the solution considering closed and open clusters + lower bound on item after i
+        profit_solution = max_profit + v_o[0] + lb_profit_after_i
+        printv(f'Max profit of the solution with closed/open clusters + lower bound item after i: {profit_solution}')
         if profit_solution >= desired_profit:
             printv("Solution can reach desired profit with open cluster")
             points_list.append(points)
@@ -308,6 +313,7 @@ for i in range(1, items.N+1):
         else:
             printv("Solution cant reach with open cluster, discarded")
 
+    removed = len(candidate_states) - len(to_keep)
     candidate_states = [candidate_states[i] for i in to_keep]
 
     dominated = []    
@@ -360,7 +366,7 @@ for i in range(1, items.N+1):
                 else:
                     printv('No permutation of open clusters satisfy constraints, cant establish dominance\n')
     candidate_states = [c for count, c in enumerate(candidate_states) if count not in dominated]
-    printv(f'Removed {len(dominated)} states: {dominated}')
+    printv(f'Removed {len(dominated) + removed} states, dominated: {dominated}')
 
     # assign non-dominated solution
     states[i] = candidate_states
